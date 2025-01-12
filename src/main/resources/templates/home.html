@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+    .welcome-container {
+      background-color: white;
+      padding: 2rem;
+      border-radius: 5px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+    button {
+      background-color: #ff4b5c;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+<div class="welcome-container">
+  <h1>안녕하세요, <span th:text="${name}">사용자</span>님</h1>
+  <form id="logoutForm" action="/logout" method="POST">
+    <button type="submit">로그아웃</button>
+  </form>
+</div>
+
+<script th:inline="javascript">
+  document.getElementById("logoutForm").addEventListener("submit", function(event) {
+    event.preventDefault();
+    console.log("Logout form submitted");
+    fetch("/logout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: 'include'
+    }).then(response => {
+      console.log("Logout response received", response);
+      if (response.ok) {
+        window.location.href = "/auth/login";
+      } else {
+        console.error('Logout failed');
+      }
+    }).catch(error => {
+      console.error('Error:', error);
+    });
+  });
+</script>
+</body>
+</html>
