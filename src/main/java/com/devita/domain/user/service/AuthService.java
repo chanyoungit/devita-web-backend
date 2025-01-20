@@ -3,11 +3,13 @@ package com.devita.domain.user.service;
 import com.devita.common.exception.ErrorCode;
 import com.devita.common.exception.SecurityTokenException;
 import com.devita.common.jwt.JwtTokenProvider;
+import com.devita.common.jwt.RefreshTokenService;
 import com.devita.domain.category.dto.CategoryResDTO;
 import com.devita.domain.category.service.CategoryService;
 import com.devita.domain.user.domain.User;
 import com.devita.domain.user.dto.UserAuthResponse;
 import com.devita.domain.user.repository.UserRepository;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,15 +21,32 @@ import java.util.List;
 @Slf4j
 public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
+    private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
     private final CategoryService categoryService;
 
-    public UserAuthResponse refreshUserAuth(String refreshToken) {
+    public UserAuthResponse refreshUserAuth(HttpServletResponse res, String refreshToken) {
         try {
-            log.info("액세스 토큰을 생성합니다.");
+            UserAuthResponse response = createFirstAccessToken(refreshToken);
+            Long userId = jwtTokenProvider.getUserIdFromRefreshToken(refreshToken);
+            refreshTokenService.deleteRefreshToken(userId);
+            jwtTokenProvider.createRefreshToken(res, userId);
+
+            return response;
+
+        } catch (Exception e) {
+            log.error("Failed to refresh user authentication: {}", e.getMessage());
+            throw new SecurityTokenException(ErrorCode.INTERNAL_TOKEN_SERVER_ERROR);
+        }
+    }
+
+    public UserAuthResponse createFirstAccessToken(String refreshToken) {
+        try {
+            log.info("처음 액세스 토큰을 생성합니다.");
             Long userId = jwtTokenProvider.getUserIdFromRefreshToken(refreshToken);
             String newAccessToken = jwtTokenProvider.validateRefreshToken(refreshToken, userId);
-            log.info("액세스 토큰: " + newAccessToken);
+            log.info("처음 액세스 토큰: " + newAccessToken);
+
             // 사용자 정보 조회
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new SecurityTokenException(ErrorCode.USER_NOT_FOUND));

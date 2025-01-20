@@ -67,7 +67,8 @@ public class AuthServiceTest {
         when(categoryService.findUserCategories(USER_ID)).thenReturn(mockCategories);
 
         // when
-        UserAuthResponse response = authService.refreshUserAuth(REFRESH_TOKEN);
+        UserAuthResponse response = authService.
+                createFirstAccessToken(REFRESH_TOKEN);
 
         // then
         assertNotNull(response);
@@ -91,7 +92,7 @@ public class AuthServiceTest {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
 
         // when
-        SecurityTokenException exception = assertThrows(SecurityTokenException.class, () -> authService.refreshUserAuth(REFRESH_TOKEN));
+        SecurityTokenException exception = assertThrows(SecurityTokenException.class, () -> authService.createFirstAccessToken(REFRESH_TOKEN));
 
         // then
         assertEquals(ErrorCode.INTERNAL_TOKEN_SERVER_ERROR, exception.getErrorCode());

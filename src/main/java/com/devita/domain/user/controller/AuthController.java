@@ -3,6 +3,7 @@ package com.devita.domain.user.controller;
 import com.devita.common.response.ApiResponse;
 import com.devita.domain.user.dto.UserAuthResponse;
 import com.devita.domain.user.service.AuthService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -21,7 +22,7 @@ public class AuthController {
     @PostMapping("/user/info")
     public ResponseEntity<ApiResponse<UserAuthResponse>> sendUserInitData(@CookieValue("refreshToken") String refreshToken) {
         log.info("로그인 성공 후 유저 정보를 반환합니다.(액세스 토큰, 닉네임 ...)");
-        UserAuthResponse response = authService.refreshUserAuth(refreshToken);
+        UserAuthResponse response = authService.createFirstAccessToken(refreshToken);
 
         HttpHeaders headers = new HttpHeaders();
         headers.add("Authorization", "Bearer " + response.accessToken());
@@ -32,8 +33,8 @@ public class AuthController {
     }
 
     @PostMapping("/reissue")
-    public ResponseEntity<ApiResponse<String>> refreshAccessToken(@CookieValue("refreshToken") String refreshToken) {
-        UserAuthResponse response = authService.refreshUserAuth(refreshToken);
+    public ResponseEntity<ApiResponse<String>> refreshAccessToken(HttpServletResponse res, @CookieValue("refreshToken") String refreshToken) {
+        UserAuthResponse response = authService.refreshUserAuth(res, refreshToken);
 
         HttpHeaders headers = new HttpHeaders();
         headers.add("Authorization", "Bearer " + response.accessToken());
