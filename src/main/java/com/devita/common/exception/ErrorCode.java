@@ -32,6 +32,9 @@ public enum ErrorCode {
     VIEW_TYPE_NOT_FOUND(HttpStatus.NOT_FOUND, "VIEW_TYPE_NOT_FOUND", "뷰타입은 weekly와 monthly만 받을 수 있습니다."),
     REWARD_NOT_FOUND(HttpStatus.NOT_FOUND, "REWARD_NOT_FOUND", "보상을 찾을 수 없습니다."),
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_NOT_FOUND", "게시물을 찾을 수 없습니다."),
+    CANNOT_FOLLOW_YOURSELF(HttpStatus.NOT_FOUND, "CANNOT_FOLLOW_YOURSELF", "자기 자신은 팔로우 할 수 없습니다."),
+    ALREADY_FOLLOWING(HttpStatus.NOT_FOUND, "ALREADY_FOLLOWING", "이미 팔로우가 되어있습니다."),
+    FOLLOW_NOT_FOUND(HttpStatus.NOT_FOUND,"FOLLOW_NOT_FOUND", "팔로우를 찾을 수 없습니다."),
 
     // 500 Internal Server Error
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 에러가 발생했습니다."),
