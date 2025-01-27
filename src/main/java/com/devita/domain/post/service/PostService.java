@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static com.devita.common.exception.ErrorCode.ACCESS_DENIED;
 import static com.devita.common.exception.ErrorCode.POST_NOT_FOUND;
 
 @Service
@@ -119,7 +120,7 @@ public class PostService {
     private Post validateWriter(Long userId, Long postId) {
         Post post = postRepository.findById(postId)
                 .filter(p -> p.getWriter().getId().equals(userId))
-                .orElseThrow(() -> new AccessDeniedException(ErrorCode.ACCESS_DENIED));
+                .orElseThrow(() -> new AccessDeniedException(ACCESS_DENIED));
         return post;
     }
 
@@ -131,26 +132,27 @@ public class PostService {
         ValueOperations<String, String> valueOps = redisTemplate.opsForValue();
         SetOperations<String, String> setOps = redisTemplate.opsForSet();
 
-        // Redis에 해당 게시물의 좋아요 데이터가 있는지 확인
-        String currentLikeCount = valueOps.get(countKey);
+        valueOps.increment(countKey);
 
-        if (currentLikeCount != null) {
-            boolean isAdded = setOps.add(likeKey, userId.toString()) == 1;
-
-            if (isAdded) {
-                valueOps.increment(countKey);
-            }
-        } else {
-            syncLikeCountToRedis(postId);
-            boolean isAdded = setOps.add(likeKey, userId.toString()) == 1;
-
-            if (isAdded) {
-                valueOps.increment(countKey);
-            }
-        }
-
-        redisTemplate.expire(countKey, 24, TimeUnit.HOURS);
-//        redisTemplate.expire(countKey, 10, TimeUnit.SECONDS);
+//        // Redis에 해당 게시물의 좋아요 데이터가 있는지 확인
+//        String currentLikeCount = valueOps.get(countKey);
+//
+//        if (currentLikeCount != null) {
+//            boolean isAdded = setOps.add(likeKey, userId.toString()) == 1;
+//
+//            if (isAdded) {
+//                valueOps.increment(countKey);
+//            }
+//        } else {
+//            syncLikeCountToRedis(postId);
+//            boolean isAdded = setOps.add(likeKey, userId.toString()) == 1;
+//
+//            if (isAdded) {
+//                valueOps.increment(countKey);
+//            }
+//        }
+//
+//        redisTemplate.expire(countKey, 24, TimeUnit.HOURS);
 
         return Long.parseLong(valueOps.get(countKey));
     }
@@ -164,8 +166,45 @@ public class PostService {
         redisTemplate.opsForValue().set(countKey, String.valueOf(post.getLikes()));
     }
 
-//    // 좋아요 증가 (Optimistic-Lock)
-//    public Long increaseLikeOptimistic(Long userId, Long postId) {
-//
-//    }
+    // 좋아요 증가 (Optimistic-Lock)
+    @Transactional
+    public Long increaseLikePessimistic(Long userId, Long postId) {
+        Post post = postRepository.findByIdWithPessimisticLock(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND));
+
+        post.updateLikes(post.getLikes() + 1);
+        postRepository.save(post);
+
+        return post.getLikes();
+    }
+
+    @Transactional
+    public Long increaseLikeOptimistic(Long userId, Long postId) {
+        int maxRetry = 100; // 최대 시도 횟수
+        int attempt = 0;    // 현재 시도 횟수
+
+        while (attempt < maxRetry) {
+            try {
+                // 트랜잭션 내에서 좋아요 증가 처리
+                return updateLikeCount(postId);
+            } catch (RuntimeException e) {
+                attempt++;
+                if (attempt >= maxRetry) {
+                    throw new AccessDeniedException(ACCESS_DENIED);
+                }
+            }
+        }
+
+        // 실패할 경우 기본값 반환 (일반적으로 여기 도달하지 않음)
+        throw new IllegalStateException("Unexpected state in like update process.");
+    }
+
+    @Transactional
+    public Long updateLikeCount(Long postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND));
+
+        post.updateLikes(post.getLikes() + 1); // 좋아요 증가
+        return post.getLikes();
+    }
 }

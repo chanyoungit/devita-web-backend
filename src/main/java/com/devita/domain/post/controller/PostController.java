@@ -75,13 +75,17 @@ public class PostController {
     }
 
     // 좋아요 증가 (비관적 락)
-//    @PostMapping("/post/{postId}/like/optimistic-lock")
-//    public ApiResponse<Long> increaseLikeOptimistic(@AuthenticationPrincipal Long userId, @PathVariable Long postId) {
-//        Long likes = postService.increaseLikeOptimistic(userId, postId);
-//
-//        return ApiResponse.success(likes);
-//    }
+    @PostMapping("/post/{postId}/like/pessimistic-lock")
+    public ApiResponse<Long> increaseLikePessimistic(@AuthenticationPrincipal Long userId, @PathVariable Long postId) {
+        Long likes = postService.increaseLikePessimistic(userId, postId);
+
+        return ApiResponse.success(likes);
+    }
 
 
-    // /post/{postId}/like/pessimistic-lock
+    @PostMapping("/post/{postId}/like/optimistic-lock")
+    public ApiResponse<Long> increaseLikeOptimistic(@AuthenticationPrincipal Long userId, @PathVariable Long postId) {
+        Long likes = postService.increaseLikeOptimistic(userId, postId);
+        return ApiResponse.success(likes);
+    }
 }

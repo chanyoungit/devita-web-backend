@@ -17,7 +17,7 @@ public class LikeSyncScheduler {
     private final JobLauncher jobLauncher;
     private final Job syncLikesJob;
 
-    @Scheduled(cron = "0 0/1 * * * ?")
+    @Scheduled(cron = "0 0 0 * * ?")
     public void runLikeSyncJob() {
         log.info("Running like sync job...");
         try {
