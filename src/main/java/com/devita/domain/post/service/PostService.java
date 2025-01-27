@@ -16,9 +16,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.SetOperations;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import static com.devita.common.exception.ErrorCode.POST_NOT_FOUND;
 
 @Service
 @Slf4j
@@ -27,6 +34,10 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final StringRedisTemplate redisTemplate;
+
+    private static final String LIKE_KEY_PREFIX = "post:like:";
+    private static final String LIKE_COUNT_KEY_PREFIX = "post:like_count:";
 
     // 게시물 생성
     public Post addPost(Long userId, PostReqDTO postReqDTO) {
@@ -71,7 +82,7 @@ public class PostService {
     // 게시물 상세 조회
     public PostResDTO getPost(Long userId, Long postId) {
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.POST_NOT_FOUND));
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND));
 
         if (!post.getWriter().getId().equals(userId)) {
             post.increaseView();
@@ -111,4 +122,50 @@ public class PostService {
                 .orElseThrow(() -> new AccessDeniedException(ErrorCode.ACCESS_DENIED));
         return post;
     }
+
+    // 좋아요 증가 (Redis)
+    @Transactional
+    public Long increaseLikeRedis(Long userId, Long postId) {
+        String likeKey = LIKE_KEY_PREFIX + postId;
+        String countKey = LIKE_COUNT_KEY_PREFIX + postId;
+        ValueOperations<String, String> valueOps = redisTemplate.opsForValue();
+        SetOperations<String, String> setOps = redisTemplate.opsForSet();
+
+        // Redis에 해당 게시물의 좋아요 데이터가 있는지 확인
+        String currentLikeCount = valueOps.get(countKey);
+
+        if (currentLikeCount != null) {
+            boolean isAdded = setOps.add(likeKey, userId.toString()) == 1;
+
+            if (isAdded) {
+                valueOps.increment(countKey);
+            }
+        } else {
+            syncLikeCountToRedis(postId);
+            boolean isAdded = setOps.add(likeKey, userId.toString()) == 1;
+
+            if (isAdded) {
+                valueOps.increment(countKey);
+            }
+        }
+
+        redisTemplate.expire(countKey, 24, TimeUnit.HOURS);
+//        redisTemplate.expire(countKey, 10, TimeUnit.SECONDS);
+
+        return Long.parseLong(valueOps.get(countKey));
+    }
+
+    // Redis 캐시 처리
+    private void syncLikeCountToRedis(Long postId) {
+        String countKey = LIKE_COUNT_KEY_PREFIX + postId;
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND));
+
+        redisTemplate.opsForValue().set(countKey, String.valueOf(post.getLikes()));
+    }
+
+//    // 좋아요 증가 (Optimistic-Lock)
+//    public Long increaseLikeOptimistic(Long userId, Long postId) {
+//
+//    }
 }

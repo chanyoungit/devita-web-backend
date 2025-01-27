@@ -45,4 +45,7 @@ public class Post extends BaseEntity {
     public void increaseView() {
         views += 1;
     }
+    public void updateLikes(Long likes) {
+        this.likes = likes;
+    }
 }

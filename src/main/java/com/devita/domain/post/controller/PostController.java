@@ -65,4 +65,23 @@ public class PostController {
 
         return ApiResponse.success(posts);
     }
+
+    // 좋아요 증가 (Redis)
+    @PostMapping("/post/{postId}/like/redis")
+    public ApiResponse<Long> increaseLikeRedis(@AuthenticationPrincipal Long userId, @PathVariable Long postId) {
+        Long likes = postService.increaseLikeRedis(userId, postId);
+
+        return ApiResponse.success(likes);
+    }
+
+    // 좋아요 증가 (비관적 락)
+//    @PostMapping("/post/{postId}/like/optimistic-lock")
+//    public ApiResponse<Long> increaseLikeOptimistic(@AuthenticationPrincipal Long userId, @PathVariable Long postId) {
+//        Long likes = postService.increaseLikeOptimistic(userId, postId);
+//
+//        return ApiResponse.success(likes);
+//    }
+
+
+    // /post/{postId}/like/pessimistic-lock
 }

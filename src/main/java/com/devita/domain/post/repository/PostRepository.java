@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
 
+
+
     // 모든 게시물을 페이징하여 조회
     Page<Post> findAll(Pageable pageable);
 
