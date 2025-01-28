@@ -21,6 +21,7 @@ public class FollowService {
 
     private final FollowRepository followRepository;
     private final UserRepository userRepository;
+    private final FollowCacheService followCacheService;
 
     @Transactional
     public void follow(Long userId, Long targetUserId) {
@@ -43,6 +44,9 @@ public class FollowService {
                 .build();
 
         followRepository.save(follow);
+
+        // 팔로우 상태가 변경되었으므로 캐시 갱신
+        followCacheService.deleteFollowCache(userId);
     }
 
     @Transactional
@@ -51,20 +55,53 @@ public class FollowService {
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.FOLLOW_NOT_FOUND));
 
         followRepository.delete(follow);
+
+        // 언팔로우 상태가 변경되었으므로 캐시 갱신
+        followCacheService.deleteFollowCache(userId);
     }
 
-    public List<FollowResponseDTO> getFollowings(Long userId) {
+    public List<FollowResponseDTO> getFollowings_NoCache(Long userId) {
         List<Follow> followings = followRepository.findByFollowerId(userId);
         return followings.stream()
                 .map(follow -> FollowResponseDTO.from(follow, true))
                 .toList();
     }
 
-    public List<FollowResponseDTO> getFollowers(Long userId) {
+    public List<FollowResponseDTO> getFollowers_NoCache(Long userId) {
         List<Follow> followers = followRepository.findByFollowingId(userId);
         return followers.stream()
                 .map(follow -> FollowResponseDTO.from(follow, false))
                 .toList();
+    }
+
+
+    public List<FollowResponseDTO> getFollowings(Long userId) {
+        // 먼저 캐시에서 팔로잉 목록 가져오기
+        List<FollowResponseDTO> followings = followCacheService.getFollowingsFromCache(userId);
+        if (followings == null) {
+            // 캐시가 비어 있으면 DB에서 가져와 캐시에 저장
+            List<Follow> followList = followRepository.findByFollowingId(userId);
+            followings = followList.stream()
+                    .map(follow -> FollowResponseDTO.from(follow, true))
+                    .toList();
+            followCacheService.cacheFollowings(userId, followings);
+        }
+
+        return followings;
+    }
+
+    public List<FollowResponseDTO> getFollowers(Long userId) {
+        // 먼저 캐시에서 팔로워 목록을 가져옵니다.
+        List<FollowResponseDTO> followers = followCacheService.getFollowersFromCache(userId);
+        if (followers == null) {
+            // 캐시가 비어 있으면 DB에서 가져와 캐시에 저장합니다.
+            List<Follow> followList = followRepository.findByFollowerId(userId);
+            followers = followList.stream()
+                    .map(follow -> FollowResponseDTO.from(follow, false))
+                    .toList();
+            followCacheService.cacheFollowers(userId, followers);
+        }
+        return followers;
     }
 
     public boolean isFollowing(Long userId, Long targetUserId) {
